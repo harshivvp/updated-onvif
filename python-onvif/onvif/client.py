@@ -32,19 +32,20 @@ def safe_func(func):
             raise ONVIFError(err)
     return wrapped
 
+xaddr_glob = ""
 
 class UsernameDigestTokenDtDiff(UsernameDigestToken):
     '''
     UsernameDigestToken class, with a time offset parameter that can be adjusted;
     This allows authentication on cameras without being time synchronized.
-    Please note that using NTP on both end is the recommended solution, 
+    Please note that using NTP on both end is the recommended solution,
     this should only be used in "safe" environements.
     '''
     def __init__(self, user, passw, dt_diff=None) :
 #        Old Style class ... sigh ...
         UsernameDigestToken.__init__(self, user, passw)
         self.dt_diff = dt_diff
-        
+
     def setcreated(self, *args, **kwargs):
         dt_adjusted = None
         if self.dt_diff :
@@ -107,6 +108,10 @@ class ONVIFService(object):
         # Convert pathname to url
         self.url = urlparse.urljoin('file:', urllib.pathname2url(url))
         self.xaddr = xaddr
+
+        global xaddr_glob
+        xaddr_glob = self.xaddr
+
         # Create soap client
         if not ws_client:
             self.ws_client = Client(url=self.url,
@@ -215,11 +220,11 @@ class ONVIFCamera(object):
     '''
     Python Implemention ONVIF compliant device
     This class integrates onvif services
-				
+
     adjust_time parameter allows authentication on cameras without being time synchronized.
-    Please note that using NTP on both end is the recommended solution, 
+    Please note that using NTP on both end is the recommended solution,
     this should only be used in "safe" environements.
-    Also, this cannot be used on AXIS camera, as every request is authenticated, contrary to ONVIF standard		
+    Also, this cannot be used on AXIS camera, as every request is authenticated, contrary to ONVIF standard
 
     >>> from onvif import ONVIFCamera
     >>> mycam = ONVIFCamera('192.168.0.112', 80, 'admin', '12345')
@@ -278,7 +283,8 @@ class ONVIFCamera(object):
             try:
                 if name.lower() in SERVICES:
                     ns = SERVICES[name.lower()]['ns']
-                    self.xaddrs[ns] = capability['XAddr']
+                    self.xaddrs[ns] = xaddr_glob
+                    # self.xaddrs[ns] = capability['XAddr']
             except Exception:
                 logger.exception('Unexcept service type')
 
@@ -287,7 +293,7 @@ class ONVIFCamera(object):
                 self.event = self.create_events_service()
                 self.xaddrs['http://www.onvif.org/ver10/events/wsdl/PullPointSubscription'] = self.event.CreatePullPointSubscription().SubscriptionReference.Address
             except:
-                pass                
+                pass
 
 
     def update_url(self, host=None, port=None):
